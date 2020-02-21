@@ -18,6 +18,7 @@ const readFile = filename => {
 			return [...prev, {numOfBooks, signUpDays, booksPerDay, books: null}]
 		}
 
+		prev[(i-1) / 2].id = (i-1) / 2;
 		prev[(i-1) / 2].books = current.split(' ').sort((id1, id2) => scores[id2] - scores[id1]);
 		return prev;
 	}, []);
@@ -34,30 +35,54 @@ const files = {
 	f: 'f_libraries_of_the_world'
 }
 
-const currentFile = 'f';
+const currentFile = 'b';
 const resultFileName = `result_${currentFile}.txt`;
 const props = readFile(`${files[currentFile]}.txt`);
 
-const calcLibraryScore = (id, library, daysLeft) => {
+const calcLibraryScore = (library, daysLeft, index) => {
 	const bestPerfNDays = Math.ceil(library.numOfBooks / library.booksPerDay);
 	const restNBooks = library.numOfBooks % library.booksPerDay;
 	const daysToScan = daysLeft - library.signUpDays;
 	let score = 0;
 
-	for (let i=0; i< daysToScan*library.booksPerDay; i++){
+	let i = 0, readed = 0;
+	const booksToRead = daysToScan*library.booksPerDay;
+	while(readed < booksToRead){
 		if (i >= library.books.length){
 			break;
 		}
+		if (props.scores[library.books[i]] !== 0){
+			readed++;
+		}
 		score+= props.scores[library.books[i]];
+		i++;
 	}
 
-	return {id , books: library.books, score};
+	return {...library, books1: library.books.slice(0, i), score, index};
 }
 
-const librariesToRead = props.libraries.map((library, i )=> calcLibraryScore(i, library, props.maxDays)).sort((l1, l2) => l2.score - l1.score);
+const librariesToRead = []
 
-console.log(librariesToRead.length);
+currentDay = 0;
 
+while(currentDay <= props.maxDays) {
+	const daysLeft = props.maxDays - currentDay;
+	const bestLibrary = props.libraries.map((library, i)=> calcLibraryScore(library, daysLeft, i)).sort((l1, l2) => l2.score - l1.score)[0];
+
+	if(!bestLibrary) {
+		break;
+	}
+	//console.log(bestLibrary.books);
+	librariesToRead.push(bestLibrary);
+	props.libraries.splice(bestLibrary.index, 1);
+
+	bestLibrary.books = bestLibrary.books.sort((id1, id2) => props.scores[id2] - props.scores[id1]);
+
+	bestLibrary.books1.forEach(book => props.scores[parseInt(book)] = 0);
+	currentDay += bestLibrary.signUpDays;
+}
+
+console.log(props.scores);
 fs.writeFile(
 	resultFileName, 
 	`${librariesToRead.length}\n${librariesToRead.map(library => `${library.id} ${library.books.length}\n${library.books.join(' ')}\n`).join('')}`
